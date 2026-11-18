@@ -1,0 +1,717 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>GÖKSEL</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+  tailwind.config = { corePlugins: { preflight: false } };
+</script>
+<style>
+  /* Yerleşim: tek sahneli tam ekran akış; mouse tekerleği, dokunma ve klavye ile sahneler arasında geçiş. */
+  :root {
+    --bg: #050F0B;
+    --panel: #0A1A13;
+    --line: #153427;
+    --line-hi: #25644A;
+    --fg: #EAFBF2;
+    --mut: #8DB9A2;
+    --g: #3DF2A0;
+    --g-deep: #0E9F63;
+    --glow: rgba(61, 242, 160, .38);
+    --display: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+    color-scheme: dark;
+  }
+  html, body { height: 100%; }
+  html { overscroll-behavior: none; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--display);
+    font-size: 16px;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+  #root { height: 100%; }
+  *, *::before, *::after { box-sizing: border-box; }
+  a { color: inherit; text-decoration: none; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  h1, h2, h3, p { margin: 0; }
+  ::selection { background: var(--g); color: #032013; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--g); outline-offset: 3px; border-radius: 6px; }
+
+  .stage { position: relative; height: 100%; overflow: hidden; --mx: 50%; --my: 40%; --sy: 0; background: var(--bg); }
+  .field { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+  .gridbg {
+    position: absolute; inset: -80px 0; z-index: 1; pointer-events: none; opacity: .22;
+    background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 64px 64px;
+    -webkit-mask-image: radial-gradient(ellipse at 50% 40%, #000 15%, transparent 72%);
+    mask-image: radial-gradient(ellipse at 50% 40%, #000 15%, transparent 72%);
+    transform: translateY(calc(var(--sy) * -52px));
+    transition: transform 1.1s cubic-bezier(.22, 1, .36, 1);
+  }
+  .spot {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background:
+      radial-gradient(620px circle at var(--mx) var(--my), rgba(61, 242, 160, .11), transparent 62%),
+      radial-gradient(900px circle at 85% 110%, rgba(14, 159, 99, .16), transparent 60%);
+  }
+  .prog { position: absolute; left: 0; top: 0; height: 2px; z-index: 40; background: var(--g); box-shadow: 0 0 12px var(--glow); transition: width 1s cubic-bezier(.22, 1, .36, 1); }
+
+  /* Geçiş ışını */
+  .beam { position: absolute; left: 0; right: 0; top: 0; height: 2px; z-index: 26; opacity: 0; pointer-events: none;
+    background: linear-gradient(90deg, transparent, var(--g), transparent); box-shadow: 0 0 28px 5px var(--glow); }
+  .beam.go.down { animation: beamDown 1s cubic-bezier(.6, 0, .2, 1); }
+  .beam.go.up { animation: beamUp 1s cubic-bezier(.6, 0, .2, 1); }
+  @keyframes beamDown { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(100vh); } }
+  @keyframes beamUp { 0% { opacity: 1; transform: translateY(100vh); } 100% { opacity: 0; transform: translateY(0); } }
+
+  /* Navigasyon */
+  .nav { position: absolute; top: 0; left: 0; right: 0; z-index: 30; padding: 14px max(16px, env(safe-area-inset-right, 0px)) 22px max(16px, env(safe-area-inset-left, 0px));
+    background: linear-gradient(var(--bg) 20%, transparent); }
+  .nav-in { max-width: 1180px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .logo { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: .16em; font-size: 15px; }
+  .logo-img { display: block; width: 48px; height: 48px; border-radius: 10px; border: 1px solid var(--line-hi); }
+  .ver { font-family: var(--mono); font-style: normal; font-weight: 500; letter-spacing: 0; font-size: 11px; color: var(--g); border: 1px solid var(--line-hi); border-radius: 6px; padding: 2px 6px; }
+  .nav-links { display: flex; align-items: center; gap: 28px; }
+  .nl { position: relative; color: var(--mut); font-size: 14px; font-weight: 500; padding: 6px 0; transition: color .3s; }
+  .nl:hover, .nl.on { color: var(--fg); }
+  .nl::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--g); transform: scaleX(0); transform-origin: left; transition: transform .45s cubic-bezier(.22, 1, .36, 1); }
+  .nl.on::after, .nl:hover::after { transform: scaleX(1); }
+  .btn-gh { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--line-hi); border-radius: 10px; font-size: 14px; font-weight: 600; background: rgba(10, 26, 19, .6); transition: background .3s, color .3s, box-shadow .3s; }
+  .btn-gh:hover { background: var(--g); color: #032013; box-shadow: 0 0 30px -6px var(--glow); }
+  @media (max-width: 639px) {
+    .nav-links { gap: 14px; }
+    .nl { font-size: 13px; }
+    .hide-sm, .nav .ver { display: none; }
+    .btn-gh { padding: 8px 10px; }
+  }
+
+  /* Sahneler */
+  .scene {
+    position: absolute; inset: 0; z-index: 10; overflow-x: hidden; overflow-y: auto;
+    opacity: 0; visibility: hidden; pointer-events: none; filter: blur(12px);
+    transform: translate3d(0, 7vh, 0) scale(.97);
+    transition: opacity .7s ease, transform 1s cubic-bezier(.22, 1, .36, 1), filter .7s ease, visibility 0s linear 1s;
+    scrollbar-width: thin; scrollbar-color: var(--line-hi) transparent;
+  }
+  .scene.is-past { transform: translate3d(0, -7vh, 0) scale(1.03); }
+  .scene.is-active {
+    opacity: 1; visibility: visible; pointer-events: auto; filter: none; transform: none;
+    transition-delay: .15s, .15s, .15s, 0s;
+  }
+  .wrap { min-height: 100%; display: flex; flex-direction: column; justify-content: center; padding-top: 96px; padding-bottom: 84px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .inner { width: 100%; max-width: 1180px; margin: 0 auto; position: relative; }
+
+  .r { opacity: 0; transform: translateY(28px); transition: opacity .6s ease, transform .6s ease; }
+  .is-active .r { opacity: 1; transform: none; transition: opacity .85s ease, transform 1s cubic-bezier(.22, 1, .36, 1); transition-delay: calc(.35s + var(--i, 0) * .09s); }
+  .w { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: .14em; margin-bottom: -.14em; }
+  .w > span { display: inline-block; transform: translateY(112%); transition: transform .5s ease; }
+  .is-active .w > span { transform: none; transition: transform 1s cubic-bezier(.22, 1, .36, 1); transition-delay: calc(.3s + var(--i, 0) * .06s); }
+
+  .h1 { font-weight: 800; letter-spacing: -.035em; line-height: 1.04; font-size: clamp(2.3rem, 6.2vw, 4.7rem); text-wrap: balance; }
+  .h2 { font-weight: 800; letter-spacing: -.03em; line-height: 1.08; font-size: clamp(1.9rem, 4.2vw, 3.1rem); text-wrap: balance; }
+  .lead { color: var(--mut); font-size: clamp(1.02rem, 1.5vw, 1.2rem); line-height: 1.7; max-width: 58ch; margin-top: 26px; }
+  .p { color: var(--mut); font-size: 1.0625rem; line-height: 1.75; max-width: 60ch; margin-top: 18px; }
+  .p b { color: var(--fg); font-weight: 600; }
+
+  .badge { display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border: 1px solid var(--line-hi); border-radius: 999px; background: rgba(14, 52, 36, .45); font-family: var(--mono); font-size: 12px; line-height: 1.4; color: var(--g); margin-bottom: 26px; max-width: 100%; }
+  .pulse { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--g); animation: ping 2.2s infinite; }
+  @keyframes ping { 0% { box-shadow: 0 0 0 0 var(--glow); } 70% { box-shadow: 0 0 0 10px rgba(61, 242, 160, 0); } 100% { box-shadow: 0 0 0 0 rgba(61, 242, 160, 0); } }
+
+  .cta { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 34px; }
+  .btn-primary, .btn-ghost { position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 10px; padding: 14px 24px; border-radius: 12px; font-weight: 700; font-size: 15px; transition: transform .35s cubic-bezier(.22, 1, .36, 1), box-shadow .35s, border-color .35s, background .35s; }
+  .btn-primary { background: var(--g); color: #032013; }
+  .btn-primary::after { content: ""; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .5), transparent); transform: skewX(-20deg); transition: left .7s; }
+  .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 14px 44px -10px var(--glow); }
+  .btn-primary:hover::after { left: 130%; }
+  .btn-ghost { border: 1px solid var(--line-hi); color: var(--fg); background: rgba(10, 26, 19, .4); }
+  .btn-ghost:hover { transform: translateY(-3px); border-color: var(--g); background: rgba(61, 242, 160, .08); }
+
+  /* Yörünge görseli */
+  .hero-orbit { position: absolute; right: -6%; top: 50%; width: min(680px, 56vw); aspect-ratio: 1; transform: translateY(-50%); pointer-events: none; z-index: 0; max-width: 100%; }
+  .hero-copy { position: relative; z-index: 1; max-width: 720px; }
+  @media (max-width: 1023px) {
+    .hero-orbit { right: 50%; transform: translate(50%, -50%); width: min(560px, 130vw); max-width: none; opacity: .3; }
+  }
+  .spin { transform-box: view-box; transform-origin: 50% 50%; animation: spin 40s linear infinite; }
+  .spin.rev { animation-duration: 58s; animation-direction: reverse; }
+  .spin.fast { animation-duration: 24s; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .o-line { fill: none; stroke: var(--line-hi); stroke-width: 1; }
+  .o-faint { fill: none; stroke: var(--line); stroke-width: 1; }
+  .o-dash { stroke-dasharray: 3 8; }
+  .o-tick { stroke: var(--line-hi); stroke-width: 1; }
+  .o-dot { fill: var(--g); }
+  .o-halo { fill: var(--g); opacity: .18; }
+
+  .flow { fill: none; stroke: var(--g); stroke-width: 1.5; stroke-dasharray: 6 8; animation: dash 1.4s linear infinite; opacity: .85; }
+  @keyframes dash { to { stroke-dashoffset: -28; } }
+  .sv-box { fill: rgba(10, 26, 19, .85); stroke: var(--line-hi); stroke-width: 1; }
+  .sv-out { fill: rgba(61, 242, 160, .1); stroke: var(--g); stroke-width: 1; }
+  .sv-t { fill: var(--fg); font-family: var(--mono); font-size: 12.5px; }
+  .sv-core { fill: var(--panel); stroke: var(--g); stroke-width: 1.5; }
+  .sv-pulse { fill: none; stroke: var(--g); stroke-width: 1; transform-box: fill-box; transform-origin: center; animation: pulseRing 2.6s ease-out infinite; }
+  @keyframes pulseRing { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(1.7); opacity: 0; } }
+
+  /* Kartlar */
+  .card { position: relative; height: 100%; overflow: hidden; border: 1px solid var(--line); border-radius: 18px; padding: 30px;
+    background: linear-gradient(180deg, rgba(14, 40, 29, .6), rgba(6, 18, 13, .6)); backdrop-filter: blur(6px);
+    transition: border-color .4s, transform .6s cubic-bezier(.22, 1, .36, 1); }
+  .card::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .4s;
+    background: radial-gradient(340px circle at var(--cx, 50%) var(--cy, 0%), rgba(61, 242, 160, .17), transparent 62%); }
+  .card:hover { border-color: var(--line-hi); transform: translateY(-6px); }
+  .card:hover::before { opacity: 1; }
+  .card > * { position: relative; }
+  .chip { width: 50px; height: 50px; display: grid; place-items: center; border-radius: 13px; color: var(--g); background: rgba(61, 242, 160, .08); border: 1px solid var(--line-hi); }
+  .card h3 { font-size: 1.28rem; font-weight: 700; letter-spacing: -.01em; margin-top: 24px; }
+  .card p { color: var(--mut); line-height: 1.7; margin-top: 12px; }
+  .ticks { list-style: none; padding: 0; margin: 22px 0 0; display: grid; gap: 10px; }
+  .ticks li { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 12.5px; color: var(--fg); }
+  .ticks li svg { color: var(--g); flex: none; }
+  .tag { font-family: var(--mono); font-size: 11.5px; padding: 3px 8px; border: 1px solid var(--line); border-radius: 6px; color: var(--mut); }
+
+  .note { display: flex; gap: 12px; align-items: flex-start; margin-top: 26px; max-width: 60ch; padding: 16px 18px; border: 1px solid var(--line-hi); border-radius: 14px; background: rgba(14, 52, 36, .35); color: var(--mut); font-size: .95rem; line-height: 1.65; }
+  .note svg { color: var(--g); flex: none; margin-top: 3px; }
+  .note b { color: var(--fg); font-weight: 600; }
+
+  /* Mimari */
+  .layers { display: grid; }
+  .layer { position: relative; display: grid; grid-template-columns: 44px 1fr; gap: 18px; padding-bottom: 26px; }
+  .layer:last-child { padding-bottom: 0; }
+  .num { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-family: var(--mono); font-weight: 700; color: var(--g); border: 1px solid var(--line-hi); background: var(--bg); position: relative; z-index: 1; }
+  .layer:not(:last-child)::before { content: ""; position: absolute; left: 21px; top: 44px; bottom: 0; width: 1px; background: linear-gradient(var(--line-hi), var(--line)); }
+  .layer:not(:last-child)::after { content: ""; position: absolute; left: 19px; top: 44px; width: 5px; height: 5px; border-radius: 50%; background: var(--g); box-shadow: 0 0 10px var(--g); animation: down 2.6s linear infinite; }
+  .layer:nth-child(2)::after { animation-delay: .7s; }
+  .layer:nth-child(3)::after { animation-delay: 1.4s; }
+  @keyframes down { 0% { top: 44px; opacity: 0; } 15% { opacity: 1; } 85% { opacity: 1; } 100% { top: calc(100% - 4px); opacity: 0; } }
+  .layer h3 { font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+  .layer h3 svg { color: var(--g); }
+  .layer p { color: var(--mut); font-size: .95rem; line-height: 1.6; margin-top: 6px; max-width: 52ch; }
+  .layer .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+  .code { border: 1px solid var(--line-hi); border-radius: 16px; background: rgba(3, 12, 8, .78); overflow: hidden; box-shadow: 0 30px 80px -30px rgba(0, 0, 0, .9), 0 0 70px -34px var(--glow); }
+  .code-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 12.5px; color: var(--mut); }
+  .code pre { margin: 0; padding: 18px; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.8; }
+  .code .ln { white-space: pre; }
+  .k { color: var(--g); } .c { color: #5F8A76; font-style: italic; } .v { color: #D6F5E6; } .d { color: #7FB59B; }
+
+  /* Felsefe */
+  .vlist { position: relative; display: grid; gap: 34px; padding-left: 34px; }
+  .vline { position: absolute; left: 5px; top: 8px; bottom: 8px; width: 1px; background: var(--line-hi); transform: scaleY(0); transform-origin: top; transition: transform .4s; }
+  .is-active .vline { transform: scaleY(1); transition: transform 1.6s cubic-bezier(.22, 1, .36, 1) .5s; }
+  .vitem { position: relative; }
+  .vitem::before { content: ""; position: absolute; left: -34px; top: 8px; width: 11px; height: 11px; border-radius: 50%; background: var(--bg); border: 2px solid var(--g); box-shadow: 0 0 14px var(--glow); }
+  .vitem h3 { font-size: 1.3rem; font-weight: 700; }
+  .vitem p { color: var(--mut); line-height: 1.7; margin-top: 8px; max-width: 46ch; }
+
+  /* Topluluk + alt bilgi */
+  .acts { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); margin-top: 34px; }
+  .act { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 14px; background: rgba(10, 26, 19, .6); transition: border-color .35s, transform .5s cubic-bezier(.22, 1, .36, 1), background .35s; }
+  .act:hover { border-color: var(--g); transform: translateY(-4px); background: rgba(61, 242, 160, .06); }
+  .act b { display: block; font-weight: 700; }
+  .act span { color: var(--mut); font-size: .88rem; }
+  .act svg.ar { margin-left: auto; color: var(--mut); flex: none; transition: transform .35s, color .35s; }
+  .act:hover svg.ar { color: var(--g); transform: translateX(4px); }
+  .foot { margin-top: 56px; padding-top: 26px; border-top: 1px solid var(--line); display: grid; gap: 26px; grid-template-columns: 1fr; color: var(--mut); font-size: .88rem; line-height: 1.7; }
+  @media (min-width: 900px) { .foot { grid-template-columns: 1.1fr 1.2fr 1.5fr; gap: 40px; } }
+  .foot h4 { margin: 0 0 8px; color: var(--fg); font-size: .9rem; font-weight: 700; }
+  .foot a.fl { display: inline-flex; align-items: center; gap: 8px; color: var(--g); font-weight: 600; margin-top: 10px; }
+  .foot a.fl:hover { text-decoration: underline; text-underline-offset: 4px; }
+  .copy { font-family: var(--mono); font-size: 12px; margin-top: 12px; }
+
+  /* Gezinti */
+  .dots { position: absolute; right: max(18px, env(safe-area-inset-right, 0px)); top: 50%; transform: translateY(-50%); z-index: 30; display: none; flex-direction: column; gap: 16px; align-items: flex-end; }
+  @media (min-width: 1100px) { .dots { display: flex; } }
+  .dot { display: inline-flex; align-items: center; gap: 12px; }
+  .dot span { font-family: var(--mono); font-size: 11px; color: var(--mut); opacity: 0; transform: translateX(8px); transition: opacity .3s, transform .3s; white-space: nowrap; }
+  .dot:hover span, .dot.on span { opacity: 1; transform: none; }
+  .dot.on span { color: var(--g); }
+  .dot i { display: block; width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--line-hi); transition: all .4s; }
+  .dot:hover i { border-color: var(--g); }
+  .dot.on i { background: var(--g); border-color: var(--g); transform: scale(1.35); box-shadow: 0 0 14px var(--glow); }
+
+  .hud { position: absolute; left: 0; right: 0; bottom: 0; z-index: 30; padding: 30px max(16px, env(safe-area-inset-right, 0px)) 14px max(16px, env(safe-area-inset-left, 0px)); background: linear-gradient(transparent, var(--bg) 85%); pointer-events: none; }
+  .hud-in { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; }
+  .hud-in > * { pointer-events: auto; }
+  .count { font-family: var(--mono); font-size: 12px; color: var(--mut); display: flex; align-items: center; gap: 10px; }
+  .count b { color: var(--g); font-weight: 700; }
+  .count span.lb { display: none; }
+  @media (min-width: 640px) { .count span.lb { display: inline; } }
+  .next { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; color: var(--mut); padding: 6px 10px; transition: color .3s; }
+  .next:hover { color: var(--g); }
+  .next svg { animation: bob 1.8s ease-in-out infinite; }
+  @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+  .mouse { width: 20px; height: 30px; border: 1.5px solid var(--line-hi); border-radius: 12px; position: relative; flex: none; }
+  .mouse::after { content: ""; position: absolute; left: 50%; top: 6px; width: 3px; height: 6px; margin-left: -1.5px; border-radius: 2px; background: var(--g); animation: wheel 1.7s ease-in-out infinite; }
+  @keyframes wheel { 0% { opacity: 0; transform: translateY(0); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(10px); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .scene, .r, .w > span, .gridbg, .vline { transition-duration: .01s !important; transition-delay: 0s !important; filter: none !important; }
+    .spin, .flow, .pulse, .sv-pulse, .layer::after, .next svg, .mouse::after, .beam { animation: none !important; }
+  }
+</style>
+
+<div id="root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+<script src="https://unpkg.com/lucide-react@0.263.1/dist/umd/lucide-react.min.js"></script>
+<script>
+(function () {
+  var React = window.React, ReactDOM = window.ReactDOM;
+  var useState = React.useState, useEffect = React.useEffect, useRef = React.useRef, useCallback = React.useCallback, Fragment = React.Fragment;
+  var html = window.htm.bind(React.createElement);
+
+  var REPO = "https://github.com/fur24kan41-ctrl/goksel";
+  var LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAACWCAIAAACzY+a1AAAQAElEQVR4Aex9B3hcxbX/mXLbNq2KJRe5YTuAsbExgUAgoQYCKZBCQgr/B4GXhNBCQnuhPB6EkvAllIT3SPIehgQCIeHRawg9EEyHQGyqq2RLturu3jblf+6urBhJC1rLK1bvu/MdzZ05c+bMmd9vZm5Zf0Dtj3ykJNa8eSjm3LklwfI2kjnWvArEnLvdNpGKBn0/47nbWRVJJZPFcSudLHYZIhTiNMERiCmc4AQCxBTGFE54BCb8BOJdGFM44RGY8BOId+HEp1BvTqWpkM2pVB3/fPP4Q6/VjmQzDEOv1R63Uv9DcSFkVLuw0mFi+/FEIKZwPNGuylgxhVWBdTydxhSOJ9pVGSumsCqwjqfTmMLxRLsqY8UUVgXW8XQ6DhTiENtACGFlZPibUqQpD+LIwZRxzjRARVL85WCEIbQmI0r5OEduGfreqjUONrJprJ0oCGw7CifKjP/PxRlTOOEpjSmMKZzwCEz4CcS7MKZwwiMw4ScQ78IPoDB6x6zkr5y7cj7K2Y9eH1M4eqxq1DKmsEaJGX1Y40zh6AOLLUeLQEzhaJGqWbuYwpqlZrSBxRSOFqmatYsprFlqRhsYUqgAKpLRuq5NO63liFIehErnURGYaFyp/6H2SOFQVVyfWAjEFE4svkaINqZwBFAmlqoWKZxYCH7o0cYUfugUjDWAmMKxIvih948p/NApGGsAFVM4/N8xljSVBlLqNf55uTjHP5LSiOXiGb2+YgpH7zq2HB8EYgrHB+cqjhJTWEVwx8d1TOH44FzFUSYshVXEZIK5jimcYIQNDzemcDgmE0yDFFYmhOgRpdzvbaW3n+F5+X9XiT+hVSS1hTgBqKoMIgnFhDAif8VinE1YBGIKJyx1mwOPKdyMxIS9xhROWOo2Bx5TuBmJCXv9v03hhKWlksBjCitBqyZtKb5YjCiVRjv4vjKkUM7PELPBajn7WF9CYJCsUhVxi3dhCYoJnMcUTmDySqHHFJZwqDgfPNCGFCp2NOYOMYVjhvDDdhBTuJUMDNl8g9WtdDeGbjGFYwCvNrpWnUKiAUUTQIHi/yIKC5qUfk7aEgNV0kdNUSsGhsKxC+olRfvIGFtRAA1QIgXalCSyLOolAUUAiKYoAIDdAY1RsBJJyR5zKOkhiiqqElQMCHoojoi9iIzMBmwiM4DIM9GlMmyRKNmiMm5FjANjrUAwyhGFEjKCAOPAqKZCqVAr0HjeMGAQCaKjJQVmGBb+ABmEXqhCZlJFQwXCshwCJtWmaSVCKiXHrkAY5Y6pDU2Y5JwRTSlwKUBJJnxqMAtHYlQgmZbmpuJUM9O2FFFKSZNzZIIxgxsWdqGUW6aptK+1MLnFqRn6ghOatC2qVSaVNBhForCjpoFhUM5NKWgoFOWGgVFqqoXGAOxEkuAUgSqhZYjmQMY9UahqIkpqIUFyCpwREo2mordRDUY0cxWGvu+7QklgnCJohNiGCQCeV9BaSh3k3C4g3cTO0VTo59e57loRbvC9LsqUY1kGNWw7AYB+lV8oCCFwJVBlMGpK7K1VLlcACZxyJQRnJi4i13WZwbTWnucxQjljIBXVwAn3fT9fyLluPpfLub6PG5hSCrg+hFZIHqXcoLjaABTjOBeNrvrzeTdAhxzXCmMEB8Xgx1lw8lUcUQOEXGomcWkbQirtSeVDKFUAiDBiYjum41i4IxgzDeCRoUSETYNrboow7CZW/x4H73Da+d+Yv9skqHcP+tpuP7rs5I9+YnGhkCvk8lHolCgmEilNeWiZKQ1pDYlQEuYwI8FTyTqLJ1nIlQe+LwMhwJRGkgDVQkpOcCcyUfCk65tGlLjDzLQlKVUa2SIGMwyS1aElpWAspExGoZMQtcwkwCSYGkAIEqBok5iJqA7jm6pLIc4FjyBCGJUoBPch58ykeCWEUsKJYGFB5f3AlTIgxa2gfYrF0AsoEGZYmUxmwcIdDzp4v913X9I4LbvPAR///GGHNDY3KTwbTTvadioEFhq2lNTD7Q44DgVNQFPperilCkg2MFXXlLHwECZACAlDIXTATcYtykxmWsA5MQwWKun5UmN4HOk3MepAhOgHu3NDcksQIxQSHRb6C3k/DIyEkc5aLMUCGXi5nO/mpAxxyuMstKrjEdwb0jCUzbTNqI3L1ADkT2sqPBq6QY/f2yZzHUCFlTANpgXuBpZQgRG6lCrbJvX9nfDkg69e8/M/3H/nsk1/77nz1ocvveQXTzy+zLLTtuO4+bzWQkm/z+uRkHODDcrOu9ALtgwCP5NOOhYB6ua9VRt63hS0YJrcMrKBR6QSIcn1drV3da3pE70+KXhBHlcXpylQju+7QZAvBB6uMFe1B3Kd663PFTq9sJdZkEikLTODa0Qov6djhcy36UA6iWzCtsLAJaBgfBOt9nBaaJwt4DGnNC7UfpHLG/kw6+rJAdl9UsPhuzQcttjYvdmfIvvN7lzYGZAAsahrqKMGKahu5bYvf+uVx574S6bJnvXxeZ09Gx569L5C2OHTno3d6+qa6xUiJoTk3ozdZjXv0jR950nAChJCZnB8PsrlVzozyLS9Z7Usam2dM00z4YZtIN6G7NrJOwc7fa5+9yOnLDzUbFzY5aVWhfY63+0KVSEzTc5YwpoX5xvmd0zfNTd99/yUJW7TgkLr4vyMRSTVovNhZ0g3zpyfaFmspyzhxMkHYV4phUu22ngO9191CgPpS4oQS1d5SuYgI2G3Bn74nIUXHLbjGftOP2n32afutdOPPjX7tP2sry2APZpdO+eGm3p71/V0vKrr1+3y5TnfPfvwc352zHFnHHj6xV/97hlfOP6MI/719M/vut9MSBZ6Cz0yUGAnZuy24xlXnfnDX57wpZMOMesNPNZCofvdTandmr5x3hGX3HTRqZd8f+bcWWG+HZyOBV92jv/popOvWnz0T6Z/5aL6Y65sOe23O/1o6a4H/8s0SHSDWr/zvsb3Lt3lzKU7n3bdjsf/YvtTr1n8g18vOP2/5v/w6iXHnr9w10MbSXMnNPd/8fgF/3bVvmf89JM7LDEl7dOE1mVbQPPhKFdVU3UKhRBAcHYKzADqFOyQnXHoor2/dYisJ0bKJJT5AT4LyMaZLbt/5pOf+943nMYESwLU0/SCps8c+fFvfvuQRUvm4Rr3g5zneY6Tbp3Zuuhj23/pqAM+/vlFEK5O1afAza9e/7ZIBiLtk4wKRB91qKC99uz0l0/4wuL9Fq5dv/bBB//8yF334qG65xFTDj1mp133m+o0ugW/P5/HZ0+XW3rODpNbZzXgAzGIIORtKrXSs5d7xqpEhjp2kjEDn2+SKSdbnwGidIcGD1iqWzqrzIaNyugHJgIh+/tyVWVrROcUH69HFFImjegFlWXMWdqqMwDvbTi3ftg+sdu3P5XeeUq/8K02eGPps8sve+zvFz70j6uf0M/3TKONm9Z1ur290sDHvJ69P/XRgw/fu+D35ruCx+995b8uvv0XF9x+/RUPPfXgG0Ixs1598bhPzjywNdf7Djg005jyvZwQCgkBv1+pTmh2v3vBMQv3WJjv85++67mHL7kdSIo2WZ/66iKzpdDVl//jr5697NuvXXnMP645YfXN52149T799P2rtOsAB3xoYRpU3nnrGfeKk1+99qyVN567/uYLOy8/5ZXLTnns5Qe78PkHNFAl8e1CKCh4EkJ8+GLUAMIAX0VIMSEsJWzxjMVylYRWyW/JLcV7OxG+XyCGgoRKfGx2rl4qU7/9/PIXr77VveUZ7y/vwJPr5H0rnl/64B1X/f6p628DV4Z9Pa07zVjyse2pQWwrc9PSux+7+5V3n9+48sVNLz7+zh+W3n37H+63bTtkG7929EHJyRYUNiZsJmUoBUmkkpAFmEqPPvfouhmp0BdPP7jsrstvsptnpnkdPkoZjrCS4crVK158DnJ/h67lsOoZ8fQd635z2f0rnttEhYPcMAb1jdl0IlPooyvvg2fvWvf83e0v3d7xj4d7331xU8eqQtqehGagaVE4VWZ0fiqNr4wwUiKEjKTeNrrqUqiIkPhQYuSEEUCTPeWjc0KH2Hna88hrsFYBTKmrn55smkmMZlgbus+ugdc2OJABwhbMb502tW5jZ+/fX1zz/MMr+ju4zaZQmaEugw7vuUdfb3unW7ruzKl1O86bAlzl+rtE4E9rmL5uYzsCc9w5Ry3cZ3sjQZY/8+btP7mR0RY7cHSOQoFsXNNR7yRaZyaX7A2NHwNAvrkAg+c7lCHqM1YWN5EQgCdsn59Tpg/zwJwFxhyAGZCYA1YzDQsdxIoo0WBI/EyjgWgGinEF+CUDivsOILpiPg5SXQpxAqEKLcdWWkFjndWQkETK7gK8vhZ6dFJYYSHI9/ZqvwAISh2H1kYPJGgxdXqDlQLcUi88/xqIpKGzFs2k7DoimVM/ObfRffqvL1i2mfO6p89sAh9Mi5u205nf1NLacsCJB8xYPCVPelevW3Xdf14LrkUFD0PtOA4+NvavMvrWGYZOfeGIxT++8tPnXL3PYSftuMMn0vXzwKUbezpXQ6gsk+IN2jbpzrvMOvWCRT84b/8zLjjg5PP3+v7ZXzr0i3tBlhe8PGgQSBkepsV7ETKGk6URo0UOtcbq+Ait8jD4jcNRwgIwcZ3azGJCgx9CTw6YaScTwABIAepky76z5pzwycVnH27MbgDpkSRsKnRSC28zeWA2Vay3qwtP5CAIKeUgoc9zacIhjsmTHH0LqW0n3ZPvSzQlDv3KoU5jKgceMXnCyoBhhxDmZb/LXMLrbrzyhRfuVN66qSmjhSW7pyzsOvBY+1sXz/nqOXN3/2IjTFMAyI6hAiK9nGPmt1+QmbvQnrsz/8gic/Z8o3kGtxL4ZScAApIQnwWCu5KGyCb2lJpoRQY4LF7QGwoh0a7FQjWkyhRqanLbzQecWNDTT0Jp4NdSm0BjAsKCG6KegsGA+OZkO7NzU3phS2pqGkAF+C0uED39m6bPmAxeQUqZyqZ9EaZSmVAoXP+ztpulgYeCd3XlwcaPZwH2chJGEHhu3u3q7DLAmD179slnHE/qKZghcD/ndycT9f5689b/ee7HP7z/8n9/4I4bnl/+UvuGzjae6d/zE62f+vL283edDICPM35Dps5mdk9b/oZfP3Hz0odu/O8Hbl76yC3XP/S3x14TBWIyC82K+1AqkEgWVokGRFMXqyUNKlEIIZhXT3DQ6jmPpmRpDqGiDKCQ27BmDTe5qjfg4ztBk+0qX/va0sgA7hNfhIXunvW9ve0gYeVb7enUpGTK3HnxvHRLvcj32bYlQ9yE+OU7Vz8n0zq1kUnH6+ZvL98IOchmMkLgR9PuqfXNbc+u/9lJV6x9bpX2CjOXtBx15hHA+1idbTkcPYDp6C7ir6ArHrDuuUJcc+bG63+yoW0529C7pmGSmDqDgQn4XGKZRHj2ujetJ38DD12rHvo1PPk/8Odrc6/8WfJCsykMDJLpkCn8+saYYiAJxT98MFUDjG7JIlQzHdYOIwAAEABJREFUVZdCjBxnYhr4MRQgZJ2vt9fJJDXNmXvOh/lZXdfbr9f4vBN4wU9KnjYNgzlJC5L0iYee7VyDjy7O1OmT99h/vtkqN/a+DPW5gLVBunDkNz/b3JTVeda3PuhY2wvcCESYK/ROaWnpauu5/oqbg6e9m37+v10r+73Q3WXfnb5+9r9Kd52P+76/bYdds5MW2tY0C4iEwAjXw5q/wL13vw5SpjNWptECA1wPH2dyebcQCB9we2sFEqcC4Hla9ZjpMCc34vIkeG+QFsVGM4/fBILEmjCxKrRXK2ulNNZrhi/7YdRNUygJVkoFzLG8jYSW84PQjyyAt4oRRGk9XKTWAkKQggQKXNN/fNWqh95KQcZsyc7+3v7JMz8B39oejpybOWW/xEdbNwkXuF3wQjAy0G89eOeywiarecrU/Y9cdMy/73fgiYvm7s/3P+YjZ/38mHnzp9ansmvfaH/gtofDQOPzZG/gZpqa/ELodQX5DZKkJgcvyxsvvbOwKQyp2H6vWbt+fT/weoxGdeyZi0+5bMEx503d4yg1+cBw6udg//Pgs19ziKE3dnqvvP42xpupwwnaiQbSOK+wx4mw17+oQ06zDvgh7HYs7P9te97BEvAXkQRIxVKsuaer86Cj6j79fXLwd4wDj+WfPo4e/p2Wg78yK1SbDEfi4RoGgN+HATmPmEPAKdUlAYqLoxwBZfR6WEKPZWy3kZoQovEYVYRLC9YGa+55fuXDr7ewbLYhO2vxvF0O22fPrx60ZP89Wqe2pnOmXuOqHkFoBrrpc3955e5bH3/ztXV1DZkddpl9+BGHHH/ytz57+AGz505P2pm3X1vzyN1/fX3ZCk5N3CJEcr9X8bwluoEGFrgc3FTbspW3XndH2K+ymbr/d/Q3Fuy9t9bKsoyGJmfRbtO+duy+p//HF04585BPH7Jg1tT5tpyz7NGOt17J4Y3WIi0kbDBIw4zp233rOwccefT+hx2515e/uc9xJ+531Hc/u8teO0AKcFAdZBJ65tTG7RfvOv/gL+z5mSP2OejwPb9+3Ge++PUDd91zB6sRfOHj9A3DkkglEEAWt0CV6C0qYyjSMfQdVdeCG5hWghgmoxYQB97pabvj2bd/96T5Uo/1hsvXA+sg4Vv5TY+vWvPbZS9dfT+syls6ZWdnQSHx3P0vL73qtnt//7c1r7ob3ghoX5PbkXj58VX33fK322945KWn3mGkLnADsBLTkjNEG5Vt1G0PLGZqEWYa6qmdfOHGJ5bd/ZK7UvSuyn3+0M+1ZOdefcGT9yxdv/olxfszSZGEXrvvzeb2FyZfd/GKu5euhY4kJJKqK9u7MuGunkE37bBheWLDW0b7G077Crv9DXPDG4a7IUU0WCmjv91699Vgzeu0a2Vdbl1jvq0hv75h5Wty9Zuycx0QYTJt429tNMJYASBjSpNIFFEoWAZ0BNg0KiTLGUXuy7VtEz1jzDCMUCq/4DqQMGgW3uptv+u5Zy66/oXL//TsNXc++cv//evlf/rHfz/Q9+AKWN6f4HVhTgR9yESW68b1r228+4ZHr/nJzddc9sef/ce1v7j4d9f98vbbf/fQ28tW6ZyVYHWMcHDF6ieXX3DiRed8+/zf/+ctbk8+XZfGjzXKV0CTd1x2w0WnXnbeief/6pe/6mzrXfFUxz2/eeOS058887u3X/CDG64897afnfnwhd+75/k72oLV6YQzB/zMU/es+Pm5fzz/e3eedfS9F5521yVnPfDTH91z6b89cP5JD5x/6g233fCEXgv+ivBPSx+77JxbLz3r0R+ffv+5J9x11gm3/PiMO879wb0Xnn3zTb99wNsYEjCklEHocYMAPiSR97CliH5PfWvhplvbcbT9cJ15+BSgNTMSShLp42TSTNdBUA/tFF7thRe74a0AuhK2nJTmTWGvbxBqEEN5ShcYkQ3gZQvraeeKvrWvbux811U5x4RJTqq1Pj2NakeGivOkwVtkJ4WNPOhUHPDgkvjL7KS6Zig4EDbk14TQZ/RvynFqNGRbU9YkI2/n3oK2Z6BtGbirLZ6rd9j0pNXCApZgDVy09rybCVZz6GRBhyM7THe9E7RbsB68toTqaWTWbJ7eTnZnC2tTup3IThu6DdXlqL6U7odCJy90O2ZymmWmBCYvL0RQ3HNImcJCJAD4u/RoQXxfu6pTGAhfgkwmk+lkkihCBDGpZYPDXZKWqXrSlNYNhp/geWYGZoI6nDFKNahQBCHTRsZpqLOaTag3WDZhNZmQIWGC471IWPkcrm9hW0kKBglMW2USRgMNDaoMpUAHoq8nn3Em1dmTweXZRJPw8HHC6OvOu70KvEk2nWvw7RxzXsaYlaQtls4wQQv9udAHmzbbMMWE6UxO4UGTzVqT0GrIqZzPSvHpXKZUgRDfBD9hQwsnMx2YnrHmJOg0masz1DSuW6SXJNJ28x7DU8IxKVNAFAyljWhCACjqxyJj7f/+Y+NyYwlqpyytZR7RcUNGKEooBTMtX6qcFwaCWmbStqMF293dzQxQNKCmSqVN0+Rewc31IaxhKpHGji4+6vflFB6Q3MQvO5oSQhgFTiRj2uBgasUIRC7S2abAEyqA/u48BzMMNI5SyPuZdNbG+xhPU+KQItnCF4VcvlDIBSJIZGxuMqUh4WQd0zEJp5ISwUEQQ3Mbu0hGlEwkOKMSn7QNYllgkxCkr4SrpUsgSJg6S5WFO14pZZncsgx4T6KaFAWKLxvvadqaSnUpxIiUEkJ4nlfAC+ccFAmCgDGGTZqAVCC1CvF1GFejZZhJq+AXNNHcRHJAqhC5N00znUr19HSFYZipq0s3NGgNXuAD0kep74WmYZv4GZYArgetCTonwDw3yKSzgRROKskt0/MC27ZN03bdMPAljguYiCREGwYzLDOZTniBC1QFwi3097p+wfd9DNhxkjKQXt6jmnJioNrN91OQBtNeIYd6LaIJCF8YeEo3NlONc8R2jdxRogGQRyWlwNFAb4m2whkjApF+bH9bOh2TJz1SAq1NoCSUeDiaJte4QzhFXJQMQSN8hJoA0RbSPgtDCEIIEW4NxEecQw/5JQwUKD/0TdvQVPihF4iIPMYNoEwoiYQFmIQrlE+YQkHMiNYGY8gBVlEvdcBN4rougqjxmDSTmoZC5/CTgiY5X3qKKNcPrYSD/omheJpLcIEh0wLXDTUo7iSlBI6DwRu2EaowVAJ3qWFEO4xSYIxIkIVCnlCNszMZc71+1PthoEADRS0GpQE3OK5XLXFpFkVXmoaTRIerqqchSI5WBIBoGgmyA4DEREIUbj6NbYAhRVIsQzEpAAEEc+yPeVE3mKG+KDryoCIzrEaeB8rv0Q82gYri0NGBVvSkizEIRUNNpKYBRB7QmigS+VFIUFGiKi7MohIAJxO1ApFFAwWgKHoCCURg+Z9T0Dij4jiYERxZAcG5SBKNgqoxyRaux+Rn5M4aQBKOggVkh2nFFTCFd3dclhGLFEHAs09rpjVVeIyRiFqNTVhg0TQBCERzxjUcFTQgNDj/qEnjFasSAAXNIsF6VMW7E8qIeoqbOATcF8oElQKZBh3tJEB76gIJCAh0jgaAJ4g2NYCOyAsUfmFCYooLRW/OgeBSENiEHdFMUwFEEK0AUKJYNNBISFTGPwIKAF1KtEEplhXqxyLVpRBKExjYWANxFudEESYsEBhowyogBZoTjSFhKwoUGzEvCilNVROAyJhoorEDVhQQhWXApIu9IlgVIIjD9KjUJGoq2hMci+DiiUJAr4BKqnFtRUFjWQPDETSejASiUSMz0ACoAY2xUyxgFYcF7DFggzUF0RBYoGiGF2wtSrEIQHQxbACIzBSMOSFeY/bxvg5IsTU6MgjFXFJQBEVRnEmEOIJOEBXQDDSHIky4PKnGbu+NTVNAGZg+cqaKzXijKenRTySRhyK+ioyo54B7DgVDAHz1DgE3H7KC46JSO1SaVBk0GggDULrkRBsQ7cjB3FAQyYCr9zQNTAHD0ECxuwI8XNDVoOASIRQfmzUlRRls2OpCEYet7v3BHRHrCHUcRiFSBBQBSREaVcxBA9WA0+aY6+Kqp4DcqEHHOjJAGxSmcdsg1sU2NANQWNQEdKSHIsGg8YpVRInQEfQYS3GhEMCSAuSPCIj8UEC95lQjf5hTokHjUoo2NGAiGnvgJDDHGgqWMUcnmKMSq5hjeVBQM1gGRRRW0IJq1EfzpZohkRA5QA2MJY21//uPHQUNgmlBtWLRHQInA4KqQdGAi5QpiERGoIMqekSm8aqBbpYix3hnQpsiiyWDog3DjoCW2ISbBnCvD/gcSY9+cMooxa4RsngrxiUFOBA6AYS4JDhK1CqLBCvABo1rC88RJFNQXIfRjRbpR2uJsyPoJpogWioN0SzQDiuYFw9MHA7QBwpRrCgGiVYM0llsGkNWmswYHHxwV0Q7OjZLhsgJFlCFeUlKmqgcQaaLE8a5R4oR/hAx1EaWeEGzKH5aUgJWUYlk4paKZLgerQkAibAGwB0w0BHKJoK0YbADnotmA2WCkUb1gWpUHIgKixSIQgMKOEY093/OEXnECDDGYg7bIuEo28JNGR8acK0SpYnEVa41qEiibSLxsIsOKwIIkGRaMggxJ2iBr0tASm9LoLHfCFJqlUUzRIpodFKUUkFHOx43/XB9pNEKiCrGi3PHMFAwErynSlAS3+1KEkWhJJV4mgKJmCaKUEUUEIVVorEXCsWqIkpFuz+qIi9YxlDQP84Fh8PjhWiIJFKhJQq+tISKoGssK1RXJPg9Y4jQivpvnXFpStgXZzhMsPE9gmZbSgRERPM/bbZsxXLJIRYiIREiJU0pj5T4t4UeimXUFQWnT0uWOFDUhK2bZbO+aIjnaulazJFFeK9mWDWyI4C7cECglIrOkXUcK8pLyrHlOIexOYh7f9gIxBR+2AyMOH4lypjCStCqSduYwpqkpZKgYgorQasmbWMKa5KWSoLaZhQOeVn5wGq5ID+w4xCDcn4q1Q9xO1it1E85+0GHoyyU8zNcv80oHO461owPAjGF44NzFUeJKawiuOPjOqZwfHCuxigDPmMKB4CYuJeYwonL3UDkMYUDQEzcS1kKS7/JDc+31VSHe35/zbYat5yfwdFLBoNvb6VqLedlKazloOPYtkQgpnBLNCZkOaZwQtK2ZdAxhVuiMSHLMYUTkrYtg35/Cre0jMs1ikBMYY0SM/qwylI4+GI0pFDO9eB71ZBCOfttpR8y3GC1nP9BgyGFwWmWOg62lqrD80GDIYXhlu+vGdJ9sFqu16DBYKEsheVcxPpaQyCmsNYYqTiemMKKIau1DjGFtcZIxfHEFFYMWa11iCmsNUYqjmcbUFjxmHGHbYpA1SlUWo8oGqAiGdEJKsuhocukSu3LuNGD75FDCpX6L2c/en3VKRx9KLHl1iEQU7h1uNVQr5jCGiJj60KJKdw63GqoV0xhDZGxdaHEFG4dbjXUK6awhsjYulDKUljufUhqQiIAAADPSURBVKic/gOGr/nmIa93H1gth0M5/bYCYNB/ySHGWZbCkkWc1z4CMYW1z9EHRBhT+AEAlWvGE2xEKWdfPX1MYfWwHSfPMYVbCfSIWxCVW+luDN1iCscAXm10jSmsDR7GEAVSuG2EEFaRQPQfgxxh6IqcoDEQNqJooBWJ0mREKedkRGNUjhjMNlSSzalEOr4mIoilci3kcQxbg0BM4dagVlN9ylK4eb+O9lpTs8JgRhv3B9mhqxoXWm4KNR53HN4gAvEuLLeGB/SDSNVs4f8DAAD//5wta6kAAAAGSURBVAMAFamuLAVQV6gAAAAASUVORK5CYII=";
+  var DOCS = REPO + "/tree/main/docs";
+
+  var SCENES = [
+    { id: "ana-sayfa", label: "Giriş" },
+    { id: "nedir", label: "GÖKSEL nedir?" },
+    { id: "ozellikler", label: "Özellikler" },
+    { id: "mimari", label: "Mimari" },
+    { id: "felsefe", label: "Felsefe" },
+    { id: "topluluk", label: "Topluluk" }
+  ];
+  var N = SCENES.length;
+  var IDS = SCENES.map(function (s) { return s.id; });
+  var START = (function () { try { var i = IDS.indexOf(location.hash.slice(1)); return i >= 0 ? i : 0; } catch (e) { return 0; } })();
+
+  /* Lucide simgeleri (UMD genel adı sürüme göre değişebildiği için birkaç ad denenir) */
+  var LR = (function () {
+    var c = [window.LucideReact, window.lucideReact, window["lucide-react"]];
+    for (var i = 0; i < c.length; i++) if (c[i]) return c[i];
+    for (var k in window) { try { var v = window[k]; if (v && v.Github && v.Puzzle) return v; } catch (e) {} }
+    return {};
+  })();
+  function Ic(p) {
+    var C = LR[p.n];
+    var size = p.size || 20;
+    if (!C) return React.createElement("span", { style: { width: size, height: size, display: "inline-block", flex: "none" } });
+    return React.createElement(C, { size: size, strokeWidth: 1.75, className: p.className || "", "aria-hidden": true });
+  }
+
+  function Words(p) {
+    var start = p.start || 0;
+    return html`<span>${p.text.split(" ").map(function (w, i) {
+      return html`<${Fragment} key=${i}><span className="w"><span style=${{ "--i": start + i }}>${w}</span></span>${" "}<//>`;
+    })}</span>`;
+  }
+
+  function spot(e) {
+    var r = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty("--cx", (e.clientX - r.left) + "px");
+    e.currentTarget.style.setProperty("--cy", (e.clientY - r.top) + "px");
+  }
+
+  /* Parçacık ağı */
+  function Field(p) {
+    var ref = useRef(null), ir = useRef(p.idx);
+    ir.current = p.idx;
+    useEffect(function () {
+      var c = ref.current, ctx = c.getContext("2d");
+      var w = 0, h = 0, pts = [], raf = 0, off = 0;
+      var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      function size() {
+        var d = Math.min(window.devicePixelRatio || 1, 2);
+        w = c.clientWidth; h = c.clientHeight;
+        c.width = w * d; c.height = h * d; ctx.setTransform(d, 0, 0, d, 0, 0);
+        var n = Math.max(24, Math.min(80, Math.round(w * h / 17000)));
+        pts = [];
+        for (var i = 0; i < n; i++) pts.push({ x: Math.random() * w, y: Math.random() * h, vx: (Math.random() - .5) * .22, vy: (Math.random() - .5) * .22, z: Math.random() * .9 + .3 });
+      }
+      function draw() {
+        off += (ir.current - off) * .045;
+        ctx.clearRect(0, 0, w, h);
+        var m = p.mouse.current, P = [], i, j;
+        for (i = 0; i < pts.length; i++) {
+          var q = pts[i];
+          if (!reduce) { q.x += q.vx * q.z; q.y += q.vy * q.z; }
+          if (q.x < 0) q.x += w; if (q.x > w) q.x -= w; if (q.y < 0) q.y += h; if (q.y > h) q.y -= h;
+          var y = ((q.y - off * 130 * q.z) % h + h) % h, x = q.x;
+          var dx = m.x - x, dy = m.y - y, dd = Math.sqrt(dx * dx + dy * dy);
+          if (dd < 180 && dd > .1) { var f = (1 - dd / 180) * 16 * q.z; x += dx / dd * f; y += dy / dd * f; }
+          P.push([x, y, q.z]);
+        }
+        ctx.lineWidth = 1;
+        for (i = 0; i < P.length; i++) for (j = i + 1; j < P.length; j++) {
+          var ax = P[i][0] - P[j][0], ay = P[i][1] - P[j][1], d2 = ax * ax + ay * ay;
+          if (d2 < 12100) {
+            ctx.strokeStyle = "rgba(61,242,160," + (0.17 * (1 - d2 / 12100)) + ")";
+            ctx.beginPath(); ctx.moveTo(P[i][0], P[i][1]); ctx.lineTo(P[j][0], P[j][1]); ctx.stroke();
+          }
+        }
+        for (i = 0; i < P.length; i++) {
+          ctx.fillStyle = "rgba(120,255,190," + (0.35 + P[i][2] * .4) + ")";
+          ctx.beginPath(); ctx.arc(P[i][0], P[i][1], P[i][2] * 1.5, 0, 6.2832); ctx.fill();
+        }
+        raf = requestAnimationFrame(draw);
+      }
+      size(); draw();
+      window.addEventListener("resize", size);
+      return function () { cancelAnimationFrame(raf); window.removeEventListener("resize", size); };
+    }, []);
+    return html`<canvas ref=${ref} className="field" aria-hidden="true"></canvas>`;
+  }
+
+  function Mark() {
+    return html`<svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+      <circle cx="13" cy="13" r="11" stroke="#25644A" strokeWidth="1.5"/>
+      <ellipse cx="13" cy="13" rx="11" ry="4.2" transform="rotate(-30 13 13)" stroke="#3DF2A0" strokeWidth="1.5"/>
+      <circle cx="13" cy="13" r="3" fill="#3DF2A0"/>
+    </svg>`;
+  }
+
+  /* Hero yörünge görseli */
+  function Orbits() {
+    var ticks = [];
+    for (var i = 0; i < 72; i++) {
+      var a = i * Math.PI / 36, long = i % 6 === 0, r1 = long ? 282 : 288, r2 = 296;
+      ticks.push(html`<line key=${i} className="o-tick" x1=${300 + r1 * Math.cos(a)} y1=${300 + r1 * Math.sin(a)} x2=${300 + r2 * Math.cos(a)} y2=${300 + r2 * Math.sin(a)}/>`);
+    }
+    return html`<svg viewBox="0 0 600 600" width="100%" height="100%" aria-hidden="true">
+      <defs>
+        <radialGradient id="coreg"><stop offset="0%" stopColor="#3DF2A0" stopOpacity="0.9"/><stop offset="55%" stopColor="#0E9F63" stopOpacity="0.35"/><stop offset="100%" stopColor="#0E9F63" stopOpacity="0"/></radialGradient>
+      </defs>
+      ${ticks}
+      <circle className="o-faint" cx="300" cy="300" r="262"/>
+      <circle className="o-line o-dash" cx="300" cy="300" r="215"/>
+      <circle className="o-line" cx="300" cy="300" r="150"/>
+      <circle className="o-line o-dash" cx="300" cy="300" r="90"/>
+      <g transform="rotate(-24 300 300)">
+        <ellipse className="o-line" cx="300" cy="300" rx="262" ry="96"/>
+        <circle className="o-dot" r="5"><animateMotion dur="14s" repeatCount="indefinite" path="M 38,300 a 262,96 0 1,0 524,0 a 262,96 0 1,0 -524,0"/></circle>
+      </g>
+      <g transform="rotate(38 300 300)">
+        <ellipse className="o-faint" cx="300" cy="300" rx="222" ry="70"/>
+        <circle className="o-dot" r="4"><animateMotion dur="19s" repeatCount="indefinite" path="M 78,300 a 222,70 0 1,1 444,0 a 222,70 0 1,1 -444,0"/></circle>
+      </g>
+      <g className="spin"><circle className="o-halo" cx="450" cy="300" r="13"/><circle className="o-dot" cx="450" cy="300" r="5"/></g>
+      <g className="spin rev"><circle className="o-halo" cx="85" cy="300" r="12"/><circle className="o-dot" cx="85" cy="300" r="4.5"/></g>
+      <g className="spin fast"><circle className="o-dot" cx="390" cy="300" r="3.5"/></g>
+      <circle cx="300" cy="300" r="70" fill="url(#coreg)"/>
+      <circle cx="300" cy="300" r="14" className="o-dot"/>
+    </svg>`;
+  }
+
+  /* Veri akışı diyagramı */
+  function Flow() {
+    var d1 = "M160 63 C 240 63, 230 190, 292 190", d2 = "M160 190 L292 190", d3 = "M160 317 C 240 317, 230 190, 292 190";
+    var srcs = [["Haber akışları", 40], ["Açık veri API'leri", 167], ["Topluluk betikleri", 294]];
+    return html`<svg viewBox="0 0 560 380" width="100%" role="img" aria-label="Üç farklı veri kaynağının GÖKSEL çekirdeğinde birleşip analiz hattına aktığını gösteren diyagram">
+      ${srcs.map(function (s, i) {
+        return html`<g key=${i}><rect className="sv-box" x="10" y=${s[1]} width="150" height="46" rx="10"/><text className="sv-t" x="24" y=${s[1] + 28}>${s[0]}</text></g>`;
+      })}
+      <path className="flow" d=${d1}/><path className="flow" d=${d2}/><path className="flow" d=${d3}/>
+      <circle className="o-dot" r="3.5"><animateMotion dur="3.2s" repeatCount="indefinite" path=${d1}/></circle>
+      <circle className="o-dot" r="3.5"><animateMotion dur="2.6s" repeatCount="indefinite" path=${d2}/></circle>
+      <circle className="o-dot" r="3.5"><animateMotion dur="3.6s" repeatCount="indefinite" path=${d3}/></circle>
+      <circle className="sv-pulse" cx="330" cy="190" r="38"/>
+      <circle className="sv-core" cx="330" cy="190" r="38"/>
+      <text x="330" y="194" textAnchor="middle" className="sv-t" style=${{ fontWeight: 700, fontSize: "11.5px", letterSpacing: ".08em" }}>GÖKSEL</text>
+      <path className="flow" d="M368 190 L410 190"/>
+      <rect className="sv-out" x="410" y="167" width="140" height="46" rx="10"/>
+      <text className="sv-t" x="424" y="195">Analiz hattınız</text>
+    </svg>`;
+  }
+
+  /* Sahneler */
+  function Hero() {
+    return html`<div className="wrap"><div className="inner">
+      <div className="hero-orbit"><div className="r" style=${{ "--i": 2 }}><${Orbits}/></div></div>
+      <div className="hero-copy">
+        <div className="badge r" style=${{ "--i": 0 }}><span className="pulse"></span><span>Açık Kaynak & Kullanıcı Odaklı İstihbarat Çözümü</span></div>
+        <h1 className="h1"><${Words} text="Açık Kaynak İstihbaratını Kendi Standartlarına Göre Özelleştir."/></h1>
+        <p className="lead r" style=${{ "--i": 6 }}>GÖKSEL, dağınık veri akışlarını tek bir çatı altında birleştirmenizi ve kendi analiz hatlarınızı özgürce kurmanızı sağlayan esnek, açık kaynaklı bir istihbarat çerçevesidir.</p>
+        <div className="cta r" style=${{ "--i": 7 }}>
+          <a className="btn-primary" href=${REPO} target="_blank" rel="noopener noreferrer"><${Ic} n="Github" size=${18}/>GitHub'da İncele</a>
+          <a className="btn-ghost" href=${DOCS} target="_blank" rel="noopener noreferrer"><${Ic} n="BookOpen" size=${18}/>Dokümantasyon</a>
+        </div>
+      </div>
+    </div></div>`;
+  }
+
+  function Nedir() {
+    return html`<div className="wrap"><div className="inner grid gap-12 lg:grid-cols-2 items-center">
+      <div>
+        <h2 className="h2"><${Words} text="GÖKSEL nedir?"/></h2>
+        <p className="p r" style=${{ "--i": 3 }}>GÖKSEL; farklı kaynaklardan gelen verileri tek bir yerde toplayan, bu verileri <b>sizin belirlediğiniz kurallarla</b> işleyen ve sonuçları size uygun biçimde sunan açık kaynaklı bir istihbarat çerçevesidir.</p>
+        <p className="p r" style=${{ "--i": 4 }}>Hazır bir kutu ürün değil, üzerine kendi iş akışınızı kurduğunuz bir altyapıdır. Neyi, nereden ve hangi sırayla toplayacağınıza siz karar verirsiniz.</p>
+        <div className="note r" style=${{ "--i": 5 }}><${Ic} n="Info" size=${18}/><span><b>GÖKSEL ne değildir?</b> Bir uçuş takip aracı ya da tek başına çalışan bir zararlı yazılım tarayıcısı değildir. Kendi analiz hatlarınızı kurmanız için tasarlanmış, genel amaçlı bir açık kaynak istihbarat (OSINT) platformudur.</span></div>
+      </div>
+      <div className="r" style=${{ "--i": 3 }}><${Flow}/></div>
+    </div></div>`;
+  }
+
+  var FEATURES = [
+    { icon: "SlidersHorizontal", t: "Tamamen Özelleştirilebilir", d: "Kullanıcıların kendi operasyonel ihtiyaçlarına göre uyarlayıp yapılandırabileceği ve iş akışlarını biçimlendirebileceği şekilde tasarlandı.", b: ["Kendi kurallarınızı tanımlayın", "Çalışma alanını ihtiyacınıza göre düzenleyin"] },
+    { icon: "Puzzle", t: "Modüler Altyapı", d: "Temiz kod tabanı; eklentileri, topluluk betiklerini ve esnek veri entegrasyonlarını destekler.", b: ["Eklenti ve betik desteği", "Esnek veri entegrasyonu"] },
+    { icon: "GitFork", t: "Açık Kaynak Şeffaflık", d: "GitHub üzerinde, işbirliğini önceleyen ve topluluk odaklı bir süreçle geliştirilir. Kodun tamamı incelemenize açıktır.", b: ["Her değişiklik herkese açık", "Katkıya açık geliştirme süreci"] }
+  ];
+  function Ozellikler() {
+    return html`<div className="wrap"><div className="inner">
+      <h2 className="h2" style=${{ maxWidth: "20ch" }}><${Words} text="İhtiyacınıza göre şekillenen üç temel yapı taşı"/></h2>
+      <div className="grid gap-5 md:grid-cols-3" style=${{ marginTop: 40 }}>
+        ${FEATURES.map(function (f, i) {
+          return html`<div key=${f.t} className="r" style=${{ "--i": 5 + i * 1.5 }}>
+            <div className="card" onMouseMove=${spot}>
+              <div className="chip"><${Ic} n=${f.icon} size=${24}/></div>
+              <h3>${f.t}</h3>
+              <p>${f.d}</p>
+              <ul className="ticks">${f.b.map(function (x) { return html`<li key=${x}><${Ic} n="Check" size=${15}/>${x}</li>`; })}</ul>
+            </div>
+          </div>`;
+        })}
+      </div>
+    </div></div>`;
+  }
+
+  var LAYERS = [
+    { icon: "Database", t: "Veri kaynakları", d: "RSS akışları, açık veri API'leri, dosyalar ve topluluk betikleri.", tags: ["rss", "api", "csv"] },
+    { icon: "Puzzle", t: "Modüller", d: "Her kaynak için bağımsız, değiştirilebilir ve paylaşılabilir bağlayıcılar.", tags: ["eklenti", "betik"] },
+    { icon: "Workflow", t: "İşleme hattı", d: "Filtreleme, zenginleştirme ve ilişkilendirme adımlarını siz sıralarsınız.", tags: ["filtre", "zenginleştirme"] },
+    { icon: "LayoutDashboard", t: "Çıktılar", d: "Pano, rapor ve dışa aktarım biçimleri; sonuçlar ihtiyacınız olan yere gider.", tags: ["pano", "rapor", "json"] }
+  ];
+  var CODE = [
+    "# GÖKSEL örnek hat tanımı",
+    "hat: kendi-analizim",
+    "kaynaklar:",
+    "  - tur: rss",
+    "    ad: haber-akisi",
+    "  - tur: api",
+    "    ad: acik-veri",
+    "isleme:",
+    "  - filtre: tekrar-temizle",
+    "  - zenginlestir: dil-tespit",
+    "cikti:",
+    "  - pano",
+    "  - json"
+  ];
+  function hl(line, i) {
+    if (line.charAt(0) === "#") return html`<span className="c">${line}</span>`;
+    var m = line.match(/^(\s*(?:- )?)([\w-]+):(.*)$/);
+    if (m) return html`<${Fragment}><span className="d">${m[1]}</span><span className="k">${m[2]}</span><span className="d">:</span><span className="v">${m[3]}</span><//>`;
+    var l = line.match(/^(\s*- )(.*)$/);
+    if (l) return html`<${Fragment}><span className="d">${l[1]}</span><span className="v">${l[2]}</span><//>`;
+    return line;
+  }
+  function Mimari() {
+    return html`<div className="wrap"><div className="inner">
+      <h2 className="h2" style=${{ maxWidth: "22ch" }}><${Words} text="Veriden çıktıya, her adım değiştirilebilir"/></h2>
+      <div className="grid gap-10 lg:grid-cols-2 items-start" style=${{ marginTop: 38 }}>
+        <div className="layers">
+          ${LAYERS.map(function (l, i) {
+            return html`<div key=${l.t} className="layer r" style=${{ "--i": 4 + i * 1.2 }}>
+              <div className="num">${i + 1}</div>
+              <div>
+                <h3><${Ic} n=${l.icon} size=${18}/>${l.t}</h3>
+                <p>${l.d}</p>
+                <div className="tags">${l.tags.map(function (t) { return html`<span key=${t} className="tag">${t}</span>`; })}</div>
+              </div>
+            </div>`;
+          })}
+        </div>
+        <div className="code r" style=${{ "--i": 6 }}>
+          <div className="code-h"><span>hat.yaml</span><span className="tag">örnek yapılandırma</span></div>
+          <pre>${CODE.map(function (ln, i) { return html`<div key=${i} className="ln r" style=${{ "--i": 8 + i * 0.5 }}>${hl(ln, i)}</div>`; })}</pre>
+        </div>
+      </div>
+    </div></div>`;
+  }
+
+  var PRINCIPLES = [
+    ["Hafif", "Gereksiz bağımlılık yok. Yalnızca ihtiyacınız olan modülleri çalıştırırsınız."],
+    ["Uyarlanabilir", "Kaynaklar, filtreler ve çıktılar sizin kurallarınızla yeniden düzenlenir."],
+    ["Kullanıcı odaklı", "Önceliği araç değil, araştırmacının çalışma biçimi belirler."]
+  ];
+  function Felsefe() {
+    return html`<div className="wrap"><div className="inner grid gap-14 lg:grid-cols-2 items-center">
+      <div>
+        <h2 className="h2"><${Words} text="Neden GÖKSEL'i geliştirdik?"/></h2>
+        <p className="p r" style=${{ "--i": 4 }}>Açık kaynak istihbarat alanındaki araçların çoğu ya tek bir amaca kilitlenmiş durumda ya da kurması ve sürdürmesi ağır. Her araştırmacının veri kaynağı, yöntemi ve önceliği farklıdır; araç da buna göre şekillenmelidir.</p>
+        <p className="p r" style=${{ "--i": 5 }}>GÖKSEL, bu alanda hafif, uyarlanabilir ve kullanıcıyı merkeze alan bir alternatif sunmak için ortaya çıktı.</p>
+      </div>
+      <div className="vlist">
+        <div className="vline"></div>
+        ${PRINCIPLES.map(function (p, i) {
+          return html`<div key=${p[0]} className="vitem r" style=${{ "--i": 5 + i * 1.5 }}><h3>${p[0]}</h3><p>${p[1]}</p></div>`;
+        })}
+      </div>
+    </div></div>`;
+  }
+
+  var ACTS = [
+    ["Bug", "Sorun bildir", "Hata ve önerileri paylaşın", REPO + "/issues"],
+    ["GitPullRequest", "Modül geliştir", "Çekme isteği gönderin", REPO + "/pulls"],
+    ["BookOpen", "Dokümantasyonu iyileştir", "Anlatımları birlikte netleştirelim", DOCS]
+  ];
+  function Topluluk() {
+    return html`<div className="wrap"><div className="inner">
+      <h2 className="h2"><${Words} text="Birlikte geliştiriyoruz."/></h2>
+      <p className="p r" style=${{ "--i": 3 }}>GÖKSEL'in yönünü topluluk belirler. Hata bildirebilir, yeni modüller yazabilir ya da dokümantasyonu iyileştirebilirsiniz. Her katkı, projeyi herkes için daha kullanışlı hale getirir.</p>
+      <div className="acts">
+        ${ACTS.map(function (a, i) {
+          return html`<a key=${a[1]} className="act r" style=${{ "--i": 4 + i }} href=${a[3]} target="_blank" rel="noopener noreferrer">
+            <div className="chip" style=${{ width: 42, height: 42 }}><${Ic} n=${a[0]} size=${20}/></div>
+            <div><b>${a[1]}</b><span>${a[2]}</span></div>
+            <${Ic} n="ArrowUpRight" size=${18} className="ar"/>
+          </a>`;
+        })}
+      </div>
+      <footer className="foot r" style=${{ "--i": 8 }}>
+        <div>
+          <img className="logo-img" src=${LOGO} alt="GÖKSEL" width="64" height="64" style=${{ width: 64, height: 64 }}/>
+          <p style=${{ marginTop: 10 }}>Açık kaynak, kullanıcı tarafından özelleştirilebilir istihbarat ve durumsal farkındalık platformu.</p>
+          <a className="fl" href=${REPO} target="_blank" rel="noopener noreferrer"><${Ic} n="Github" size=${16}/>GitHub deposu</a>
+        </div>
+        <div>
+          <h4>Lisans</h4>
+          <p>GÖKSEL, açık kaynak lisansı altında yayımlanır. Kullanım, değiştirme ve dağıtım koşulları için depodaki LICENSE dosyasına bakın.</p>
+          <p className="copy">© 2026 GÖKSEL Topluluğu</p>
+        </div>
+        <div>
+          <h4>Yasal uyarı</h4>
+          <p>GÖKSEL, yalnızca herkese açık kaynaklardan elde edilen verilerle çalışmak üzere tasarlanmış bir araçtır. Kullanımdan doğan sorumluluk kullanıcıya aittir; kullanıcılar bulundukları ülkenin yasal düzenlemelerine ve veri koruma kurallarına uymakla yükümlüdür.</p>
+        </div>
+      </footer>
+    </div></div>`;
+  }
+
+  var VIEWS = [Hero, Nedir, Ozellikler, Mimari, Felsefe, Topluluk];
+  var NAV = [["Özellikler", 2], ["Mimari", 3], ["Topluluk", 5]];
+
+  function App() {
+    var s1 = useState(START), idx = s1[0], setIdx = s1[1];
+    var s2 = useState(0), tick = s2[0], setTick = s2[1];
+    var s3 = useState(1), dir = s3[0], setDir = s3[1];
+    var idxRef = useRef(START), lock = useRef(0), scenes = useRef([]), stage = useRef(null), mouse = useRef({ x: -999, y: -999 });
+
+    var go = useCallback(function (n, force) {
+      n = Math.max(0, Math.min(N - 1, n));
+      if (n === idxRef.current) return;
+      var now = Date.now();
+      if (!force && now < lock.current) return;
+      lock.current = now + 950;
+      setDir(n > idxRef.current ? 1 : -1);
+      idxRef.current = n;
+      setIdx(n);
+      setTick(function (t) { return t + 1; });
+      try { if (location.hash !== "#" + IDS[n]) location.hash = IDS[n]; } catch (e) {}
+    }, []);
+
+    useEffect(function () {
+      var lastT = 0, lastAbs = 0, ty = 0, bnd = { top: false, bot: false };
+      function bounds() {
+        var el = scenes.current[idxRef.current];
+        if (!el) return { top: true, bot: true };
+        return { top: el.scrollTop <= 1, bot: el.scrollTop + el.clientHeight >= el.scrollHeight - 2 };
+      }
+      function onWheel(e) {
+        if (e.ctrlKey) return;
+        var d = e.deltaY;
+        if (Math.abs(d) < 4) return;
+        var b = bounds();
+        if ((d > 0 && !b.bot) || (d < 0 && !b.top)) return;
+        e.preventDefault();
+        var now = Date.now(), gap = now - lastT, a = Math.abs(d);
+        lastT = now;
+        var inertia = gap < 90 && a <= lastAbs;
+        lastAbs = a;
+        if (inertia || now < lock.current) return;
+        go(idxRef.current + (d > 0 ? 1 : -1));
+      }
+      function onKey(e) {
+        var t = e.target && e.target.tagName;
+        if (t === "INPUT" || t === "TEXTAREA" || e.altKey || e.ctrlKey || e.metaKey) return;
+        var b = bounds(), k = e.key;
+        if ((k === "ArrowDown" || k === "PageDown" || k === " ") && b.bot) { e.preventDefault(); go(idxRef.current + 1); }
+        else if ((k === "ArrowUp" || k === "PageUp") && b.top) { e.preventDefault(); go(idxRef.current - 1); }
+        else if (k === "Home") { e.preventDefault(); go(0); }
+        else if (k === "End") { e.preventDefault(); go(N - 1); }
+      }
+      function onTS(e) { ty = e.touches[0].clientY; bnd = bounds(); }
+      function onTE(e) {
+        var dy = ty - e.changedTouches[0].clientY;
+        if (Math.abs(dy) < 60) return;
+        if (dy > 0 && bnd.bot) go(idxRef.current + 1);
+        else if (dy < 0 && bnd.top) go(idxRef.current - 1);
+      }
+      function onHash() {
+        var i = IDS.indexOf(location.hash.slice(1));
+        if (i >= 0 && i !== idxRef.current) go(i, true);
+      }
+      function onMove(e) {
+        var st = stage.current; if (!st) return;
+        var r = st.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+        mouse.current = { x: x, y: y };
+        st.style.setProperty("--mx", x + "px"); st.style.setProperty("--my", y + "px");
+      }
+      window.addEventListener("wheel", onWheel, { passive: false });
+      window.addEventListener("keydown", onKey);
+      window.addEventListener("touchstart", onTS, { passive: true });
+      window.addEventListener("touchend", onTE, { passive: true });
+      window.addEventListener("hashchange", onHash);
+      window.addEventListener("mousemove", onMove);
+      return function () {
+        window.removeEventListener("wheel", onWheel);
+        window.removeEventListener("keydown", onKey);
+        window.removeEventListener("touchstart", onTS);
+        window.removeEventListener("touchend", onTE);
+        window.removeEventListener("hashchange", onHash);
+        window.removeEventListener("mousemove", onMove);
+      };
+    }, [go]);
+
+    var last = idx === N - 1;
+    return html`<div className="stage" ref=${stage} style=${{ "--sy": idx }}>
+      <${Field} idx=${idx} mouse=${mouse}/>
+      <div className="gridbg"></div>
+      <div className="spot"></div>
+      <div className="prog" style=${{ width: (idx / (N - 1) * 100) + "%" }}></div>
+
+      <header className="nav"><div className="nav-in">
+        <a href="#ana-sayfa" className="logo" onClick=${function (e) { e.preventDefault(); go(0); }}><img className="logo-img" src=${LOGO} alt="GÖKSEL" width="48" height="48"/><em className="ver">v0.1.0</em></a>
+        <nav className="nav-links" aria-label="Ana gezinti">
+          ${NAV.map(function (n) {
+            return html`<a key=${n[1]} href=${"#" + IDS[n[1]]} className=${"nl" + (idx === n[1] ? " on" : "")} onClick=${function (e) { e.preventDefault(); go(n[1]); }}>${n[0]}</a>`;
+          })}
+        </nav>
+        <a className="btn-gh" href=${REPO} target="_blank" rel="noopener noreferrer" aria-label="GitHub deposu"><${Ic} n="Github" size=${16}/><span className="hide-sm">GitHub</span></a>
+      </div></header>
+
+      ${VIEWS.map(function (V, i) {
+        var st = i === idx ? "is-active" : (i < idx ? "is-past" : "");
+        return html`<section key=${i} className=${"scene " + st} aria-label=${SCENES[i].label} ref=${function (el) { scenes.current[i] = el; }}><${V}/></section>`;
+      })}
+
+      <nav className="dots" aria-label="Bölümler">
+        ${SCENES.map(function (s, i) {
+          return html`<button key=${s.id} className=${"dot" + (i === idx ? " on" : "")} onClick=${function () { go(i); }} aria-label=${s.label}><span>${s.label}</span><i></i></button>`;
+        })}
+      </nav>
+
+      <div className="hud"><div className="hud-in">
+        <div className="count"><b>${String(idx + 1).padStart(2, "0")}</b><span>/ ${String(N).padStart(2, "0")}</span><span className="lb">${SCENES[idx].label}</span></div>
+        ${idx === 0
+          ? html`<button className="next" onClick=${function () { go(1); }}><span className="mouse"></span>Kaydırarak keşfet</button>`
+          : last
+            ? html`<button className="next" onClick=${function () { go(0); }}><${Ic} n="ArrowUp" size=${16}/>Başa dön</button>`
+            : html`<button className="next" onClick=${function () { go(idx + 1); }}>${SCENES[idx + 1].label}<${Ic} n="ChevronDown" size=${16}/></button>`}
+        <span></span>
+      </div></div>
+
+      <div key=${tick} className=${"beam " + (dir > 0 ? "down" : "up") + (tick ? " go" : "")}></div>
+    </div>`;
+  }
+
+  ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+})();
+</script>
+
+</body></html>
